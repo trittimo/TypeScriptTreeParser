@@ -11,10 +11,10 @@ module Tree {
         qualifiedPath: string[];
         constructor(node: ts.Node) {
             this.source = node;
-            this.kind = ts.syntaxKindToName(node.kind);
             this.start = node.pos;
             this.stop = node.end;
             this.children = [];
+            this.qualifiedPath = [];
         }
     }
     export class FileNode extends Node {
@@ -23,12 +23,15 @@ module Tree {
             super(node);
             this.sourceFile = node.text;
             this.name = node.fileName;
+            this.kind = "FileNode";
+            this.qualifiedPath.push(node.fileName.substr(0, node.fileName.indexOf(".")));
         }
     }
     export class ModuleNode extends Node {
         constructor(node: ts.ModuleDeclaration) {
             super(node);
             this.name = node.name.text;
+            this.kind = "ModuleNode";
         }
     }
     export class NamespaceNode extends Node {
@@ -36,18 +39,21 @@ module Tree {
         constructor(node: ts.Node) {
             super(node);
             // this.name = node.name.text;
+            this.kind = "NamespaceNode";
         }
     }
     export class ClassNode extends Node {
         constructor(node: ts.ClassDeclaration) {
             super(node);
             this.name = node.name.text;
+            this.kind = "ClassNode";
         }
     }
     export class InterfaceNode extends Node {
         constructor(node: ts.InterfaceDeclaration) {
             super(node);
             this.name = node.name.text;
+            this.kind = "InterfaceNode";
         }
     }
     export class MethodNode extends Node {
@@ -55,6 +61,7 @@ module Tree {
         constructor(node: ts.MethodDeclaration | ts.MethodSignature) {
             super(node);
             // this.name = node.name.getText();
+            this.kind = "MethodNode";
         }
     }
     export class FieldNode extends Node {
@@ -63,6 +70,7 @@ module Tree {
         constructor(node: ts.VariableDeclaration | ts.PropertyDeclaration | ts.PropertySignature) {
             super(node);
             // this.name = node.name.text;
+            this.kind = "FieldNode";
         }
     }
 
@@ -96,6 +104,11 @@ module Tree {
             case ts.SyntaxKind.PropertySignature:
             node = new FieldNode(sourceNode as ts.PropertySignature);
             break;
+            case ts.SyntaxKind.Identifier:
+            //let node: ts.Identifier = sourceNode as ts.Identifier;
+            
+            
+            break;
             default:
             break;
         }
@@ -103,6 +116,7 @@ module Tree {
             node.parent = parent;
             if (parent !== null) {
                 parent.children.push(node);
+                node.qualifiedPath = parent.qualifiedPath.concat([node.name]);
             }
         }
         sourceNode.getChildren().forEach(child => {
@@ -110,10 +124,25 @@ module Tree {
         });
         return node;
     }
+
+    export function logSourceTree(node, depth = 0) {
+        if (node.name) {
+            console.log(Array(depth + 1).join(" "), ts.syntaxKindToName(node.kind), "::", node.name.text, "::");
+        } else if (node.kind === ts.SyntaxKind.Identifier) {
+            console.log(Array(depth + 1).join(" "), ts.syntaxKindToName(node.kind), "--", node.text, "--");
+        } else {
+            console.log(Array(depth + 1).join(" "), ts.syntaxKindToName(node.kind));
+        }
+
+        node.getChildren().forEach(child => {
+            if (typeof(child) !== "string") logSourceTree(child, depth + 1); 
+        });
+    }
 }
 
 function run() {
     var script = (<any>document.getElementById('scriptSource')).value;
     let ntsTree: ts.SourceFile = ts.createSourceFile('script.ts', script, ts.ScriptTarget.Latest, true);
     console.log(Tree.buildSourceTree(ntsTree, null));
+    // Tree.logSourceTree(ntsTree);
 }

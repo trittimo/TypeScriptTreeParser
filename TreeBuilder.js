@@ -9,10 +9,10 @@ var Tree;
     var Node = (function () {
         function Node(node) {
             this.source = node;
-            this.kind = ts.syntaxKindToName(node.kind);
             this.start = node.pos;
             this.stop = node.end;
             this.children = [];
+            this.qualifiedPath = [];
         }
         return Node;
     }());
@@ -23,6 +23,8 @@ var Tree;
             _super.call(this, node);
             this.sourceFile = node.text;
             this.name = node.fileName;
+            this.kind = "FileNode";
+            this.qualifiedPath.push(node.fileName.substr(0, node.fileName.indexOf(".")));
         }
         return FileNode;
     }(Node));
@@ -32,6 +34,7 @@ var Tree;
         function ModuleNode(node) {
             _super.call(this, node);
             this.name = node.name.text;
+            this.kind = "ModuleNode";
         }
         return ModuleNode;
     }(Node));
@@ -42,6 +45,7 @@ var Tree;
         function NamespaceNode(node) {
             _super.call(this, node);
             // this.name = node.name.text;
+            this.kind = "NamespaceNode";
         }
         return NamespaceNode;
     }(Node));
@@ -51,6 +55,7 @@ var Tree;
         function ClassNode(node) {
             _super.call(this, node);
             this.name = node.name.text;
+            this.kind = "ClassNode";
         }
         return ClassNode;
     }(Node));
@@ -60,6 +65,7 @@ var Tree;
         function InterfaceNode(node) {
             _super.call(this, node);
             this.name = node.name.text;
+            this.kind = "InterfaceNode";
         }
         return InterfaceNode;
     }(Node));
@@ -70,6 +76,7 @@ var Tree;
         function MethodNode(node) {
             _super.call(this, node);
             // this.name = node.name.getText();
+            this.kind = "MethodNode";
         }
         return MethodNode;
     }(Node));
@@ -80,6 +87,7 @@ var Tree;
         function FieldNode(node) {
             _super.call(this, node);
             // this.name = node.name.text;
+            this.kind = "FieldNode";
         }
         return FieldNode;
     }(Node));
@@ -114,6 +122,9 @@ var Tree;
             case ts.SyntaxKind.PropertySignature:
                 node = new FieldNode(sourceNode);
                 break;
+            case ts.SyntaxKind.Identifier:
+                //let node: ts.Identifier = sourceNode as ts.Identifier;
+                break;
             default:
                 break;
         }
@@ -121,6 +132,7 @@ var Tree;
             node.parent = parent;
             if (parent !== null) {
                 parent.children.push(node);
+                node.qualifiedPath = parent.qualifiedPath.concat([node.name]);
             }
         }
         sourceNode.getChildren().forEach(function (child) {
@@ -129,9 +141,27 @@ var Tree;
         return node;
     }
     Tree.buildSourceTree = buildSourceTree;
+    function logSourceTree(node, depth) {
+        if (depth === void 0) { depth = 0; }
+        if (node.name) {
+            console.log(Array(depth + 1).join(" "), ts.syntaxKindToName(node.kind), "::", node.name.text, "::");
+        }
+        else if (node.kind === ts.SyntaxKind.Identifier) {
+            console.log(Array(depth + 1).join(" "), ts.syntaxKindToName(node.kind), "--", node.text, "--");
+        }
+        else {
+            console.log(Array(depth + 1).join(" "), ts.syntaxKindToName(node.kind));
+        }
+        node.getChildren().forEach(function (child) {
+            if (typeof (child) !== "string")
+                logSourceTree(child, depth + 1);
+        });
+    }
+    Tree.logSourceTree = logSourceTree;
 })(Tree || (Tree = {}));
 function run() {
     var script = document.getElementById('scriptSource').value;
     var ntsTree = ts.createSourceFile('script.ts', script, ts.ScriptTarget.Latest, true);
     console.log(Tree.buildSourceTree(ntsTree, null));
+    // Tree.logSourceTree(ntsTree);
 }
